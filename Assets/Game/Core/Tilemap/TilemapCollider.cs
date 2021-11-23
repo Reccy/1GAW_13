@@ -5,7 +5,6 @@ using UnityEngine.Tilemaps;
 using Reccy.DebugExtensions;
 using Reccy.ScriptExtensions;
 
-
 // Resolves collisions against an obstacle tilemap and moves according to attached rigidbody velocity
 [RequireComponent(typeof(Rigidbody2D))]
 public class TilemapCollider : MonoBehaviour
