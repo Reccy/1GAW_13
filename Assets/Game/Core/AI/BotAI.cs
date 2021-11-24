@@ -12,23 +12,11 @@ public class BotAI : MonoBehaviour
     private Vector3Int MinCell => m_tilemap.cellBounds.min;
     private Vector3Int MaxCell => m_tilemap.cellBounds.max;
 
-    [SerializeField] private GameObject m_originObj;
-    private Vector3Int OriginPos => m_tilemap.WorldToCell(m_originObj.transform.position);
+    private LevelManager m_levelManager;
 
-    [SerializeField] private GameObject m_targetObj;
-    private Vector3Int TargetPos => m_tilemap.WorldToCell(m_targetObj.transform.position);
-
-    private void Update()
+    private void Awake()
     {
-        var results = FindPathBetween(OriginPos, TargetPos);
-
-        for (int i = 1; i < results.Count; ++i)
-        {
-            var from = results[i - 1];
-            var to = results[i];
-
-            Debug2.DrawArrow((Vector3Int)from + m_tilemap.tileAnchor, (Vector3Int)to + m_tilemap.tileAnchor, Color.blue);
-        }
+        m_levelManager = FindObjectOfType<LevelManager>();
     }
 
     /// <summary>
@@ -75,7 +63,7 @@ public class BotAI : MonoBehaviour
                 if (visited.Contains(next))
                     continue;
 
-                float newCost = currentCost[current] + Vector2Int.Distance(current, next) + GetCostValue(next);
+                float newCost = currentCost[current] + Vector2Int.Distance(current, next) + GetCellValue(next);
 
                 if (!currentCost.ContainsKey(next) || newCost < currentCost[next])
                 {
@@ -148,90 +136,14 @@ public class BotAI : MonoBehaviour
         return result;
     }
 
-    private int GetCostValue(Vector2Int pos)
+    private int GetCellValue(Vector2Int pos)
     {
-        if (CellIsOccupied(pos))
-            return 50;
-        else
+        LevelTile tile = m_levelManager.GetTileInfo((Vector3Int)pos);
+
+        if (tile == null)
             return 1;
-    }
-
-    public class PathfindResults
-    {
-        private List<Vector3Int> m_checkedPositions;
-        private List<Vector3Int> m_path;
-        private Dictionary<Vector3Int, int> m_totalDistance;
-        private Vector3Int m_target;
-        private Vector3Int m_origin;
-
-        public bool CanReachTarget => m_path.Last() == m_target;
-
-        public List<Vector3Int> CheckedPositions => m_checkedPositions;
-        public List<Vector3Int> Path => m_path;
-        public Dictionary<Vector3Int, int> TotalDistance => m_totalDistance;
-        public Vector3Int Origin => m_origin;
-        public Vector3Int Target => m_target;
-        public Vector3Int Closest => m_path.Last();
-
-        public PathfindResults(Dictionary<Vector3Int, int> totalDistance, Dictionary<Vector3Int, List<Vector3Int>> backtrack, List<Vector3Int> checkedPositions, Vector3Int target, Vector3Int origin)
-        {
-            m_checkedPositions = checkedPositions;
-            m_totalDistance = totalDistance;
-
-            Vector3Int current = target;
-            m_target = target;
-            m_origin = origin;
-
-            m_path = new List<Vector3Int>();
-            m_path.Add(target);
-
-            while (current != origin)
-            {
-                var smallestIdx = -1;
-                var smallestDist = int.MaxValue;
-
-                for (int i = 0; i < backtrack[current].Count; ++i)
-                {
-                    var path = backtrack[current][i];
-                    var dist = totalDistance[path];
-
-                    if (dist < smallestDist)
-                    {
-                        smallestDist = dist;
-                        smallestIdx = i;
-                    }
-                }
-
-                var next = backtrack[current][smallestIdx];
-
-                m_path.Add(next);
-                current = next;
-            }
-        }
-    }
-
-    // Could seperate this into a Lib class?
-    private class ClosestDistanceComparer : IComparer<Vector3Int>
-    {
-        private Vector3Int m_target;
-
-        public ClosestDistanceComparer(Vector3Int target)
-        {
-            m_target = target;
-        }
-
-        public int Compare(Vector3Int x, Vector3Int y)
-        {
-            float distX = Vector3Int.Distance(x, m_target);
-            float distY = Vector3Int.Distance(y, m_target);
-
-            if (distX < distY)
-                return 1;
-            else if (distX > distY)
-                return -1;
-            else
-                return 0;
-        }
+        else
+            return 15 * tile.HP;
     }
 
     private List<Vector2Int> GetSurroundingCells(Vector2Int from)
@@ -243,23 +155,23 @@ public class BotAI : MonoBehaviour
         Vector2Int left = from + Vector2Int.left;
         Vector2Int right = from + Vector2Int.right;
 
-        if (MaxCell.y > up.y)
+        var upTile = m_levelManager.GetTileInfo(up);
+        var downTile = m_levelManager.GetTileInfo(down);
+        var leftTile = m_levelManager.GetTileInfo(left);
+        var rightTile = m_levelManager.GetTileInfo(right);
+
+        if (MaxCell.y > up.y && (upTile == null || upTile.Breakable))
             result.Add(up);
 
-        if (MaxCell.x > right.x)
+        if (MaxCell.x > right.x && (rightTile == null || rightTile.Breakable))
             result.Add(right);
 
-        if (MinCell.y <= down.y)
+        if (MinCell.y <= down.y && (downTile == null || downTile.Breakable))
             result.Add(down);
 
-        if (MinCell.x <= left.x)
+        if (MinCell.x <= left.x && (leftTile == null || leftTile.Breakable))
             result.Add(left);
 
         return result;
-    }
-
-    private bool CellIsOccupied(Vector2Int cell)
-    {
-        return m_tilemap.GetTile((Vector3Int)cell) != null;
     }
 }
