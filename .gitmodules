@@ -7,3 +7,6 @@
 [submodule "Assets/Lib/UnityBezierCurve"]
 	path = Assets/Lib/UnityBezierCurve
 	url = git@github.com:Reccy/UnityBezierCurve.git
+[submodule "Assets/Lib/UnityEditorUtilScripts"]
+	path = Assets/Lib/UnityEditorUtilScripts
+	url = git@github.com:Reccy/UnityEditorUtilScripts.git
