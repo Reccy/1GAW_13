@@ -15,6 +15,14 @@ public class LevelManager : MonoBehaviour
 
     private Dictionary<Vector3Int, LevelTile> m_levelTiles;
 
+    public delegate void OnLevelUpdateEvent();
+    public OnLevelUpdateEvent OnLevelUpdate;
+    private void OnLevelUpdateInvoke()
+    {
+        if (OnLevelUpdate != null)
+            OnLevelUpdate();
+    }
+
     private void Awake()
     {
         m_levelTiles = new Dictionary<Vector3Int, LevelTile>();
@@ -48,7 +56,7 @@ public class LevelManager : MonoBehaviour
                 return BuildOreTile();
         }
 
-        throw new System.Exception($"FATAL: TileTypeDefinition not implemented for {ttd.tileType}");
+        throw new Exception($"FATAL: TileTypeDefinition not implemented for {ttd.tileType}");
     }
 
     private LevelTile BuildGroundTile()
@@ -79,6 +87,11 @@ public class LevelManager : MonoBehaviour
     public Vector3Int CellPosition(Vector3 realPosition)
     {
         return m_grid.WorldToCell(realPosition);
+    }
+
+    public Vector3 WorldPosition(Vector2Int cellPosition)
+    {
+        return WorldPosition((Vector3Int)cellPosition);
     }
 
     public Vector3 WorldPosition(Vector3Int cellPosition)
@@ -121,6 +134,8 @@ public class LevelManager : MonoBehaviour
 
         m_levelTiles.Remove(position);
         m_groundTilemap.SetTile(position, null);
+
+        OnLevelUpdateInvoke();
     }
 
     private void Update()

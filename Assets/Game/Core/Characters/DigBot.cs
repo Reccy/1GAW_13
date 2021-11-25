@@ -13,7 +13,7 @@ public class DigBot : MonoBehaviour
     private BotAI m_AI;
 
     private List<Vector2Int> m_path;
-    int m_pathIdx = 0;
+    private int m_pathIdx = 0;
 
     private Vector2Int DestinationCellPosition => m_path[m_pathIdx];
     private Vector3 DestinationWorldPosition => m_levelManager.WorldPosition((Vector3Int)DestinationCellPosition);
@@ -21,17 +21,44 @@ public class DigBot : MonoBehaviour
     private LevelTile m_currentLevelTile;
 
     private Coroutine m_digCoroutine;
+    private Vector2Int m_digTilePosition;
+
+    private readonly Vector2Int NULLV2 = Vector2Int.one * int.MaxValue;
 
     private void Awake()
     {
         m_AI = FindObjectOfType<BotAI>();
         m_levelManager = FindObjectOfType<LevelManager>();
         m_rb = GetComponent<Rigidbody2D>();
+
+        m_levelManager.OnLevelUpdate += UpdatePath;
     }
     
     private void Start()
     {
-        m_path = m_AI.FindPathBetween(m_levelManager.CellPosition(transform.position), m_levelManager.CellPosition(m_target.transform.position));
+        UpdatePath();
+    }
+
+    private void UpdatePath()
+    {
+        m_path = m_AI.FindPath(m_levelManager.CellPosition(transform.position), m_levelManager.CellPosition(m_target.transform.position));
+
+        // Prevent backtracking on path when it updates
+        if (m_path.Count > 0)
+        {
+            m_pathIdx = 1;
+        }
+        else
+        {
+            m_pathIdx = 0;
+        }
+
+        if (m_digTilePosition != NULLV2 && m_levelManager.GetTileInfo(m_digTilePosition) == null)
+        {
+            StopCoroutine(m_digCoroutine);
+            m_digTilePosition = NULLV2;
+            m_digCoroutine = null;
+        }
     }
 
     private void Update()
@@ -50,7 +77,7 @@ public class DigBot : MonoBehaviour
     {
         m_rb.velocity = (DestinationWorldPosition - transform.position).normalized * m_speed * Time.deltaTime;
 
-        if (Vector3.Distance(DestinationWorldPosition, transform.position) < 0.05f)
+        if (Vector3.Distance(DestinationWorldPosition, transform.position) < 0.2f)
         {
             if (m_pathIdx < m_path.Count - 1)
             {
@@ -59,13 +86,13 @@ public class DigBot : MonoBehaviour
 
                 if (m_currentLevelTile != null && m_currentLevelTile.Breakable)
                 {
+                    m_digTilePosition = DestinationCellPosition;
                     DigTile();
                 }
             }
             else
             {
                 m_rb.velocity = Vector2.zero;
-                Debug.Log("Finished");
             }
         }
     }
@@ -80,11 +107,13 @@ public class DigBot : MonoBehaviour
 
     private IEnumerator DigTileCoroutine()
     {
-        while (m_currentLevelTile.HP > 0)
-        {
-            m_levelManager.DigTile(DestinationCellPosition);
+        var tilePos = m_digTilePosition;
 
-            Debug.Log("DIG!");
+        while (m_levelManager.GetTileInfo(tilePos) != null && m_currentLevelTile.HP > 0)
+        {
+            m_levelManager.DigTile(tilePos);
+
+            Debug.Log($"{name} is digging coords {tilePos}");
 
             yield return new WaitForSeconds(0.8f);
         }
