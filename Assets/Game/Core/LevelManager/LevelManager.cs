@@ -23,6 +23,14 @@ public class LevelManager : MonoBehaviour
             OnLevelUpdate();
     }
 
+    public delegate void OnTileDestroyedEvent(Vector2Int cellPos);
+    public OnTileDestroyedEvent OnTileDestroyed;
+    private void OnTileDestroyedInvoke(Vector2Int cellPos)
+    {
+        if (OnTileDestroyed != null)
+            OnTileDestroyed(cellPos);
+    }
+
     private void Awake()
     {
         m_levelTiles = new Dictionary<Vector3Int, LevelTile>();
@@ -135,6 +143,7 @@ public class LevelManager : MonoBehaviour
         m_levelTiles.Remove(position);
         m_groundTilemap.SetTile(position, null);
 
+        OnTileDestroyedInvoke((Vector2Int)position);
         OnLevelUpdateInvoke();
     }
 

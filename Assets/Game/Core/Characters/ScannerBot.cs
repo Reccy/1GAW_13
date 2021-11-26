@@ -6,6 +6,7 @@ using Reccy.DebugExtensions;
 public class ScannerBot : MonoBehaviour
 {
     [SerializeField] private float m_speed = 5.0f;
+    [SerializeField] private int m_scanRadius = 5;
 
     private LevelManager m_levelManager;
     private Rigidbody2D m_rb;
@@ -17,8 +18,6 @@ public class ScannerBot : MonoBehaviour
     private Vector2Int DestinationCellPosition => m_patrolRoute[m_patrolIdx];
     private Vector3 DestinationWorldPosition => m_levelManager.WorldPosition((Vector3Int)DestinationCellPosition);
 
-    private Vector3Int m_targetPosition;
-
     private LevelTile m_currentLevelTile;
 
     private bool m_movePositive = true;
@@ -28,6 +27,8 @@ public class ScannerBot : MonoBehaviour
         m_AI = FindObjectOfType<BotAI>();
         m_levelManager = FindObjectOfType<LevelManager>();
         m_rb = GetComponent<Rigidbody2D>();
+
+        m_levelManager.OnLevelUpdate += UpdatePath;
     }
 
     private void Start()
@@ -61,6 +62,8 @@ public class ScannerBot : MonoBehaviour
 
         if (Vector3.Distance(DestinationWorldPosition, transform.position) < 0.2f)
         {
+            m_currentLevelTile = m_levelManager.GetTileInfo(DestinationCellPosition);
+
             if (m_patrolIdx == 0)
                 m_movePositive = true;
 
@@ -72,7 +75,7 @@ public class ScannerBot : MonoBehaviour
             else
                 m_patrolIdx--;
 
-            m_currentLevelTile = m_levelManager.GetTileInfo(DestinationCellPosition);
+            m_AI.ScanForOre(DestinationCellPosition, m_scanRadius);
         }
     }
 

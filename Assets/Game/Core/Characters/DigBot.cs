@@ -113,8 +113,6 @@ public class DigBot : MonoBehaviour
         {
             m_levelManager.DigTile(tilePos);
 
-            Debug.Log($"{name} is digging coords {tilePos}");
-
             yield return new WaitForSeconds(0.8f);
         }
 

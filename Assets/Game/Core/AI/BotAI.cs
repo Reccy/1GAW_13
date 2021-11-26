@@ -8,16 +8,38 @@ using System.Linq; // I know this is bad practice but fuck it, it's a prototype
 
 public class BotAI : MonoBehaviour
 {
-    [SerializeField] private Tilemap m_tilemap;
-    private Vector3Int MinCell => m_tilemap.cellBounds.min;
-    private Vector3Int MaxCell => m_tilemap.cellBounds.max;
+    [SerializeField] private Tilemap m_groundTilemap;
+    private Vector3Int MinCell => m_groundTilemap.cellBounds.min;
+    private Vector3Int MaxCell => m_groundTilemap.cellBounds.max;
     private Vector2Int TopLeftCell => new Vector2Int(MinCell.x, MaxCell.y);
 
     private LevelManager m_levelManager;
 
+    private HashSet<Vector2Int> m_discoveredOres;
+
     private void Awake()
     {
         m_levelManager = FindObjectOfType<LevelManager>();
+        m_discoveredOres = new HashSet<Vector2Int>();
+
+        m_levelManager.OnTileDestroyed += OnTileDestroyed;
+    }
+
+    private void Update()
+    {
+        if (m_oreScansDebug != null)
+        {
+            foreach (var v in m_oreScansDebug)
+            {
+                Debug2.DrawCross(m_levelManager.WorldPosition(v), Color.red);
+            }
+        }
+    }
+
+    private void OnTileDestroyed(Vector2Int tileCell)
+    {
+        if (m_discoveredOres.Contains(tileCell))
+            m_discoveredOres.Remove(tileCell);
     }
 
     public List<Vector2Int> FindPatrolRouteForScanBot(Vector2Int startPos)
@@ -247,7 +269,7 @@ public class BotAI : MonoBehaviour
 
         foreach (var x in visited)
         {
-            Debug2.DrawCross((Vector3Int)x + m_tilemap.tileAnchor, Color.green);
+            Debug2.DrawCross((Vector3Int)x + m_groundTilemap.tileAnchor, Color.green);
         }
 
         return path;
@@ -257,7 +279,7 @@ public class BotAI : MonoBehaviour
     {
         bool result = true;
 
-        if (!m_tilemap.cellBounds.Contains((Vector3Int)startCellIndex))
+        if (!m_groundTilemap.cellBounds.Contains((Vector3Int)startCellIndex))
         {
             Debug.LogWarning($"Cannot pathfind, startCellIndex is out of bounds {startCellIndex}");
             result = false;
@@ -270,13 +292,13 @@ public class BotAI : MonoBehaviour
     {
         bool result = true;
 
-        if (!m_tilemap.cellBounds.Contains((Vector3Int)startCellIndex))
+        if (!m_groundTilemap.cellBounds.Contains((Vector3Int)startCellIndex))
         {
             Debug.LogWarning($"Cannot pathfind, startCellIndex is out of bounds {startCellIndex}");
             result = false;
         }
 
-        if (!m_tilemap.cellBounds.Contains((Vector3Int)endCellIndex))
+        if (!m_groundTilemap.cellBounds.Contains((Vector3Int)endCellIndex))
         {
             Debug.LogWarning($"Cannot pathfind, endCellIndex is out of bounds {endCellIndex}");
             result = false;
@@ -293,6 +315,62 @@ public class BotAI : MonoBehaviour
             return 1;
         else
             return 15 * tile.HP;
+    }
+
+    private List<Vector2Int> m_oreScansDebug;
+
+    public void ScanForOre(Vector2Int cellOrigin, int radius)
+    {
+        m_oreScansDebug = new List<Vector2Int>();
+
+        for (int x = 0; x <= radius; ++x)
+        {
+            for (int y = 0; y <= radius; ++y)
+            {
+                if (Mathf.Abs(x) + Mathf.Abs(y) > radius)
+                    continue;
+
+                ScanOre(cellOrigin.x + x, cellOrigin.y + y);
+
+                if (x != 0)
+                    ScanOre(cellOrigin.x - x, cellOrigin.y + y);
+
+                if (y != 0)
+                    ScanOre(cellOrigin.x + x, cellOrigin.y - y);
+
+                if (x != 0 && y != 0)
+                    ScanOre(cellOrigin.x - x, cellOrigin.y - y);
+            }
+        }
+    }
+
+    private void ScanOre(int x, int y)
+    {
+        var coords = new Vector2Int(x, y);
+        m_oreScansDebug.Add(coords);
+
+        var tile = m_levelManager.GetTileInfo(coords);
+
+        if (tile == null)
+            return;
+
+        if (tile.TileType == TileType.ORE)
+        {
+            if (!m_discoveredOres.Contains(coords))
+            {
+                m_discoveredOres.Add(coords);
+            }
+        }
+    }
+
+    private void SetTileColor(Vector2Int tile, Color col)
+    {
+        var t = (Vector3Int)tile;
+        var flags = m_groundTilemap.GetTileFlags((Vector3Int)tile);
+
+        m_groundTilemap.SetTileFlags(t, TileFlags.None);
+        m_groundTilemap.SetColor((Vector3Int)tile, col);
+        m_groundTilemap.SetTileFlags(t, flags);
     }
 
     private List<Vector2Int> GetSurroundingCells(Vector2Int from, bool canDig)
