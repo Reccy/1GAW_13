@@ -5,7 +5,6 @@ using Reccy.DebugExtensions;
 
 public class DigBot : MonoBehaviour
 {
-    [SerializeField] private GameObject m_target;
     [SerializeField] private float m_speed = 3.0f;
 
     private LevelManager m_levelManager;
@@ -18,10 +17,17 @@ public class DigBot : MonoBehaviour
     private Vector2Int DestinationCellPosition => m_path[m_pathIdx];
     private Vector3 DestinationWorldPosition => m_levelManager.WorldPosition((Vector3Int)DestinationCellPosition);
 
+    private Vector2Int CurrentCellPosition => (Vector2Int)m_levelManager.CellPosition(transform.position);
+    private Vector3 CurrentWorldPosition => m_levelManager.WorldPosition((Vector3Int)CurrentCellPosition);
+
     private LevelTile m_currentLevelTile;
 
     private Coroutine m_digCoroutine;
     private Vector2Int m_digTilePosition;
+
+    private Vector2Int m_assignedDigPosition;
+
+    public bool IsAssignedJob => m_assignedDigPosition != NULLV2;
 
     private readonly Vector2Int NULLV2 = Vector2Int.one * int.MaxValue;
 
@@ -30,18 +36,25 @@ public class DigBot : MonoBehaviour
         m_AI = FindObjectOfType<BotAI>();
         m_levelManager = FindObjectOfType<LevelManager>();
         m_rb = GetComponent<Rigidbody2D>();
+        m_assignedDigPosition = NULLV2;
 
         m_levelManager.OnLevelUpdate += UpdatePath;
-    }
-    
-    private void Start()
-    {
+        m_levelManager.OnTileDestroyed += OnTileDestroyed;
+
         UpdatePath();
     }
 
     private void UpdatePath()
     {
-        m_path = m_AI.FindPath(m_levelManager.CellPosition(transform.position), m_levelManager.CellPosition(m_target.transform.position));
+        if (m_assignedDigPosition == NULLV2)
+        {
+            m_path = new List<Vector2Int>();
+            m_path.Add(CurrentCellPosition);
+            m_pathIdx = 0;
+            return;
+        }
+
+        m_path = m_AI.FindPath(m_levelManager.CellPosition(transform.position), (Vector3Int)m_assignedDigPosition);
 
         // Prevent backtracking on path when it updates
         if (m_path.Count > 0)
@@ -55,10 +68,27 @@ public class DigBot : MonoBehaviour
 
         if (m_digTilePosition != NULLV2 && m_levelManager.GetTileInfo(m_digTilePosition) == null)
         {
-            StopCoroutine(m_digCoroutine);
+            if (m_digCoroutine != null)
+                StopCoroutine(m_digCoroutine);
+
             m_digTilePosition = NULLV2;
             m_digCoroutine = null;
         }
+    }
+
+    private void OnTileDestroyed(Vector2Int tile)
+    {
+        if (m_assignedDigPosition == tile)
+        {
+            m_assignedDigPosition = NULLV2;
+            UpdatePath();
+        }
+    }
+
+    public void AssignDigJob(Vector2Int tile)
+    {
+        m_assignedDigPosition = tile;
+        UpdatePath();
     }
 
     private void Update()
@@ -75,6 +105,12 @@ public class DigBot : MonoBehaviour
 
     private void FixedUpdate()
     {
+        if (m_assignedDigPosition == NULLV2)
+        {
+            m_rb.velocity = Vector2.zero;
+            return;
+        }
+
         m_rb.velocity = (DestinationWorldPosition - transform.position).normalized * m_speed * Time.deltaTime;
 
         if (Vector3.Distance(DestinationWorldPosition, transform.position) < 0.2f)

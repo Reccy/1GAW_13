@@ -16,11 +16,22 @@ public class BotAI : MonoBehaviour
     private LevelManager m_levelManager;
 
     private HashSet<Vector2Int> m_discoveredOres;
+    private HashSet<Vector2Int> m_assignedOres;
+
+    private List<ScannerBot> m_scannerBots;
+    private List<DigBot> m_digBots;
+
+    [SerializeField] private readonly float m_aiTickSecond = 2.0f;
+    private float m_aiTick = 0;
 
     private void Awake()
     {
         m_levelManager = FindObjectOfType<LevelManager>();
         m_discoveredOres = new HashSet<Vector2Int>();
+        m_assignedOres = new HashSet<Vector2Int>();
+
+        m_scannerBots = FindObjectsOfType<ScannerBot>().ToList();
+        m_digBots = FindObjectsOfType<DigBot>().ToList();
 
         m_levelManager.OnTileDestroyed += OnTileDestroyed;
     }
@@ -36,10 +47,48 @@ public class BotAI : MonoBehaviour
         }
     }
 
+    private void FixedUpdate()
+    {
+        m_aiTick -= Time.deltaTime;
+
+        if (m_aiTick <= 0)
+        {
+            m_aiTick = m_aiTickSecond;
+
+            AssignDigJobs();
+        }
+    }
+
+    private void AssignDigJobs()
+    {
+        if (m_discoveredOres.Count == 0)
+            return;
+
+        foreach (var bot in m_digBots)
+        {
+            if (bot.IsAssignedJob)
+                continue;
+
+            var set = m_discoveredOres.Except(m_assignedOres).ToList();
+
+            if (set.Count == 0)
+                return;
+
+            var tile = set.ClosestToZero((Vector2Int v) => Vector2Int.Distance((Vector2Int)m_levelManager.CellPosition(bot.transform.position), v));
+
+            m_assignedOres.Add(tile);
+
+            bot.AssignDigJob(tile);
+        }
+    }
+
     private void OnTileDestroyed(Vector2Int tileCell)
     {
         if (m_discoveredOres.Contains(tileCell))
             m_discoveredOres.Remove(tileCell);
+
+        if (m_assignedOres.Contains(tileCell))
+            m_assignedOres.Remove(tileCell);
     }
 
     public List<Vector2Int> FindPatrolRouteForScanBot(Vector2Int startPos)
