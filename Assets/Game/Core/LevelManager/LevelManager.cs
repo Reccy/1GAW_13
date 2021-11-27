@@ -10,6 +10,10 @@ public class LevelManager : MonoBehaviour
     [SerializeField] private Grid m_grid;
     [SerializeField] private Tilemap m_groundTilemap;
 
+    [Header("Fog of War")]
+    [SerializeField] private Tilemap m_fogOfWar;
+    [SerializeField] private TileBase m_fogTile;
+
     [Header("Object Config")]
     [SerializeField] private List<TileTypeDefinition> m_tileTypes;
 
@@ -30,6 +34,8 @@ public class LevelManager : MonoBehaviour
         if (OnTileDestroyed != null)
             OnTileDestroyed(cellPos);
     }
+
+    private int m_fogOfWarFilledFrame = -1;
 
     private void Awake()
     {
@@ -52,6 +58,31 @@ public class LevelManager : MonoBehaviour
                 }
             }
         }
+
+        FillFogOfWar();
+    }
+
+    private void FillFogOfWar()
+    {
+        if (Time.frameCount == m_fogOfWarFilledFrame)
+            return;
+
+        m_fogOfWarFilledFrame = Time.frameCount;
+
+        for (int x = m_groundTilemap.cellBounds.min.x; x < m_groundTilemap.cellBounds.max.x; ++x)
+        {
+            for (int y = m_groundTilemap.cellBounds.min.y; y < m_groundTilemap.cellBounds.max.y; ++y)
+            {
+                var pos = new Vector3Int(x, y, 0);
+
+                m_fogOfWar.SetTile(pos, m_fogTile);
+            }
+        }
+    }
+
+    public bool IsInFogOfWar(Vector3Int cellPoint)
+    {
+        return m_fogOfWar.GetTile(cellPoint) != null;
     }
 
     private LevelTile CreateLevelTile(TileTypeDefinition ttd)
@@ -145,6 +176,13 @@ public class LevelManager : MonoBehaviour
 
         OnTileDestroyedInvoke((Vector2Int)position);
         OnLevelUpdateInvoke();
+    }
+
+    public void ClearFogOfWar(Vector3Int coords)
+    {
+        FillFogOfWar();
+
+        m_fogOfWar.SetTile(coords, null);
     }
 
     private void Update()

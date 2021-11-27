@@ -7,6 +7,7 @@ public class ScannerBot : MonoBehaviour
 {
     [SerializeField] private float m_speed = 5.0f;
     [SerializeField] private int m_scanRadius = 5;
+    [SerializeField] private Collider2D m_collider;
 
     private LevelManager m_levelManager;
     private Rigidbody2D m_rb;
@@ -20,25 +21,21 @@ public class ScannerBot : MonoBehaviour
 
     private LevelTile m_currentLevelTile;
 
-    private bool m_movePositive = true;
-
     private void Awake()
     {
         m_AI = FindObjectOfType<BotAI>();
         m_levelManager = FindObjectOfType<LevelManager>();
         m_rb = GetComponent<Rigidbody2D>();
-
-        m_levelManager.OnLevelUpdate += UpdatePath;
     }
 
     private void Start()
     {
-        UpdatePath();
+        UpdatePath(m_levelManager.CellPosition(transform.position));
     }
 
-    private void UpdatePath()
+    private void UpdatePath(Vector3Int targetPosition)
     {
-        m_patrolRoute = m_AI.FindPatrolRouteForScanBot((Vector2Int)m_levelManager.CellPosition(transform.position));
+        m_patrolRoute = m_AI.FindPath(m_levelManager.CellPosition(transform.position), targetPosition);
 
         // Set the patrolIdx as closest route
         float closestDistance = float.MaxValue;
@@ -64,23 +61,35 @@ public class ScannerBot : MonoBehaviour
         {
             m_currentLevelTile = m_levelManager.GetTileInfo(DestinationCellPosition);
 
-            if (m_patrolIdx == 0)
-                m_movePositive = true;
-
-            if (m_patrolIdx == m_patrolRoute.Count - 1)
-                m_movePositive = false;
-
-            if (m_movePositive)
+            if (!(m_patrolIdx == m_patrolRoute.Count - 1))
                 m_patrolIdx++;
             else
-                m_patrolIdx--;
-
-            m_AI.ScanForOre(DestinationCellPosition, m_scanRadius);
+                m_rb.velocity = Vector2Int.zero;
         }
+        
+        m_AI.ScanForOre(DestinationCellPosition, m_scanRadius);
     }
 
     private void Update()
     {
+        // Input
+
+        if (Input.GetMouseButtonDown(1))
+        {
+            var point = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+            var cellPos = m_levelManager.CellPosition(point);
+
+            if (m_levelManager.IsInFogOfWar(cellPos))
+                return;
+
+            if (m_levelManager.GetTileInfo(cellPos) != null)
+                return;
+
+            UpdatePath(cellPos);
+        }
+
+        // Debug Draw
+
         for (int i = 1; i < m_patrolRoute.Count; ++i)
         {
             Debug2.DrawArrow(m_levelManager.WorldPosition(m_patrolRoute[i - 1]), m_levelManager.WorldPosition(m_patrolRoute[i]), Color.green);

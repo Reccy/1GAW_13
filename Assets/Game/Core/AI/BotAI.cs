@@ -397,6 +397,7 @@ public class BotAI : MonoBehaviour
     {
         var coords = new Vector2Int(x, y);
         m_oreScansDebug.Add(coords);
+        m_levelManager.ClearFogOfWar((Vector3Int)coords);
 
         var tile = m_levelManager.GetTileInfo(coords);
 

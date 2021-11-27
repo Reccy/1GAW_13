@@ -6,6 +6,7 @@ using Reccy.DebugExtensions;
 public class DigBot : MonoBehaviour
 {
     [SerializeField] private float m_speed = 3.0f;
+    [SerializeField] private Collider2D m_collider;
 
     private LevelManager m_levelManager;
     private Rigidbody2D m_rb;
@@ -93,6 +94,20 @@ public class DigBot : MonoBehaviour
 
     private void Update()
     {
+        // Input
+
+        if (Input.GetMouseButtonDown(0))
+        {
+            var ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            var hit = Physics2D.Raycast(ray.origin, ray.direction);
+            
+            if (hit.collider == m_collider)
+            {
+                //
+            }
+        }
+
+        // Debug Drawing
         for (int i = 1; i < m_path.Count; ++i)
         {
             var from = m_levelManager.WorldPosition((Vector3Int)m_path[i - 1]);

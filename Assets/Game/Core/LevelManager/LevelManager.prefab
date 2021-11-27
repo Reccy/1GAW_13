@@ -45,6 +45,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_grid: {fileID: 0}
   m_groundTilemap: {fileID: 0}
+  m_fogOfWar: {fileID: 0}
+  m_fogTile: {fileID: 11400000, guid: 0d4445c68efb6ae4c85b92b25b211d63, type: 2}
   m_tileTypes:
   - tile: {fileID: 11400000, guid: 00367399a4ff1c44cad43168971b354f, type: 2}
     tileType: 0
