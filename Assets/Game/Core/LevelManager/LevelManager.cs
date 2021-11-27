@@ -184,15 +184,4 @@ public class LevelManager : MonoBehaviour
 
         m_fogOfWar.SetTile(coords, null);
     }
-
-    private void Update()
-    {
-        if (Input.GetMouseButtonDown(0))
-        {
-            var position = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-            var cellPosition = m_groundTilemap.WorldToCell(position);
-
-            Debug.Log(GetTileInfo(cellPosition));
-        }
-    }
 }

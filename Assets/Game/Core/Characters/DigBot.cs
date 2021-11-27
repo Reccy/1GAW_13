@@ -8,6 +8,7 @@ public class DigBot : MonoBehaviour
     [SerializeField] private float m_speed = 3.0f;
     [SerializeField] private Collider2D m_collider;
 
+    private ScannerBot m_scanner;
     private LevelManager m_levelManager;
     private Rigidbody2D m_rb;
     private BotAI m_AI;
@@ -26,9 +27,10 @@ public class DigBot : MonoBehaviour
     private Coroutine m_digCoroutine;
     private Vector2Int m_digTilePosition;
 
-    private Vector2Int m_assignedDigPosition;
+    private Vector2Int m_movementTarget;
+    private Vector2Int m_digTarget;
 
-    public bool IsAssignedJob => m_assignedDigPosition != NULLV2;
+    public bool IsAssignedJob => m_digTarget != NULLV2;
 
     private readonly Vector2Int NULLV2 = Vector2Int.one * int.MaxValue;
 
@@ -37,17 +39,36 @@ public class DigBot : MonoBehaviour
         m_AI = FindObjectOfType<BotAI>();
         m_levelManager = FindObjectOfType<LevelManager>();
         m_rb = GetComponent<Rigidbody2D>();
-        m_assignedDigPosition = NULLV2;
+        m_movementTarget = NULLV2;
+        m_digTarget = NULLV2;
+        m_scanner = FindObjectOfType<ScannerBot>();
 
         m_levelManager.OnLevelUpdate += UpdatePath;
         m_levelManager.OnTileDestroyed += OnTileDestroyed;
 
+        m_scanner.OnMove += UpdateAssignedPosition;
+
+        UpdatePath();
+    }
+
+    private void Start()
+    {
+        m_movementTarget = m_AI.ScannerPositionForDigger();
+        UpdatePath();
+    }
+
+    private void UpdateAssignedPosition(Vector2Int _)
+    {
+        if (IsAssignedJob)
+            return;
+
+        m_movementTarget = m_AI.ScannerPositionForDigger();
         UpdatePath();
     }
 
     private void UpdatePath()
     {
-        if (m_assignedDigPosition == NULLV2)
+        if (m_movementTarget == NULLV2)
         {
             m_path = new List<Vector2Int>();
             m_path.Add(CurrentCellPosition);
@@ -55,7 +76,7 @@ public class DigBot : MonoBehaviour
             return;
         }
 
-        m_path = m_AI.FindPath(m_levelManager.CellPosition(transform.position), (Vector3Int)m_assignedDigPosition);
+        m_path = m_AI.FindPath(m_levelManager.CellPosition(transform.position), (Vector3Int)m_movementTarget);
 
         // Prevent backtracking on path when it updates
         if (m_path.Count > 0)
@@ -79,16 +100,17 @@ public class DigBot : MonoBehaviour
 
     private void OnTileDestroyed(Vector2Int tile)
     {
-        if (m_assignedDigPosition == tile)
+        if (m_digTarget == tile)
         {
-            m_assignedDigPosition = NULLV2;
+            m_digTarget = NULLV2;
             UpdatePath();
         }
     }
 
     public void AssignDigJob(Vector2Int tile)
     {
-        m_assignedDigPosition = tile;
+        m_digTarget = tile;
+        m_movementTarget = tile;
         UpdatePath();
     }
 
@@ -120,7 +142,7 @@ public class DigBot : MonoBehaviour
 
     private void FixedUpdate()
     {
-        if (m_assignedDigPosition == NULLV2)
+        if (m_movementTarget == NULLV2)
         {
             m_rb.velocity = Vector2.zero;
             return;

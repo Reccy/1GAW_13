@@ -38,6 +38,22 @@ public class BotAI : MonoBehaviour
 
     private void Update()
     {
+        if (Input.GetMouseButtonDown(0))
+        {
+            var position = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+            var cellPosition = m_groundTilemap.WorldToCell(position);
+
+            if (m_levelManager.IsInFogOfWar(cellPosition))
+                return;
+
+            var tileInfo = m_levelManager.GetTileInfo(cellPosition);
+
+            if (tileInfo == null)
+                return;
+
+            AssignDigJob((Vector2Int)cellPosition);
+        }
+
         if (m_oreScansDebug != null)
         {
             foreach (var v in m_oreScansDebug)
@@ -47,6 +63,7 @@ public class BotAI : MonoBehaviour
         }
     }
 
+    /*
     private void FixedUpdate()
     {
         m_aiTick -= Time.deltaTime;
@@ -56,6 +73,21 @@ public class BotAI : MonoBehaviour
             m_aiTick = m_aiTickSecond;
 
             AssignDigJobs();
+        }
+    }
+    */
+
+    private void AssignDigJob(Vector2Int tile)
+    {
+
+        foreach (var bot in m_digBots)
+        {
+            if (bot.IsAssignedJob)
+                continue;
+
+            bot.AssignDigJob(tile);
+
+            return;
         }
     }
 
@@ -391,6 +423,48 @@ public class BotAI : MonoBehaviour
                     ScanOre(cellOrigin.x - x, cellOrigin.y - y);
             }
         }
+    }
+
+    public Vector2Int ScannerPositionForDigger()
+    {
+        var scanner = FindObjectOfType<ScannerBot>();
+
+        var scanCellPos = m_levelManager.CellPosition(scanner.transform.position);
+
+        if (IsWalkable(scanCellPos + Vector3Int.up))
+        {
+            return (Vector2Int)(scanCellPos + Vector3Int.up);
+        }
+
+        if (IsWalkable(scanCellPos + Vector3Int.right))
+        {
+            return (Vector2Int)(scanCellPos + Vector3Int.right);
+        }
+
+        if (IsWalkable(scanCellPos + Vector3Int.down))
+        {
+            return (Vector2Int)(scanCellPos + Vector3Int.down);
+        }
+
+        if (IsWalkable(scanCellPos + Vector3Int.left))
+        {
+            return (Vector2Int)(scanCellPos + Vector3Int.left);
+        }
+
+        return (Vector2Int)scanCellPos;
+    }
+
+    private bool IsWalkable(Vector3Int pos)
+    {
+        return IsWalkable((Vector2Int)pos);
+    }
+
+    private bool IsWalkable(Vector2Int pos)
+    {
+        if (m_levelManager.IsInFogOfWar((Vector3Int)pos))
+            return false;
+
+        return m_levelManager.GetTileInfo(pos) == null;
     }
 
     private void ScanOre(int x, int y)

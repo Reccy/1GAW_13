@@ -21,6 +21,14 @@ public class ScannerBot : MonoBehaviour
 
     private LevelTile m_currentLevelTile;
 
+    public delegate void OnMoveEvent(Vector2Int cellPos);
+    public OnMoveEvent OnMove;
+    private void OnMoveInvoke()
+    {
+        if (OnMove != null)
+            OnMove((Vector2Int)m_levelManager.CellPosition(transform.position));
+    }
+
     private void Awake()
     {
         m_AI = FindObjectOfType<BotAI>();
@@ -60,6 +68,8 @@ public class ScannerBot : MonoBehaviour
         if (Vector3.Distance(DestinationWorldPosition, transform.position) < 0.2f)
         {
             m_currentLevelTile = m_levelManager.GetTileInfo(DestinationCellPosition);
+
+            OnMoveInvoke();
 
             if (!(m_patrolIdx == m_patrolRoute.Count - 1))
                 m_patrolIdx++;
